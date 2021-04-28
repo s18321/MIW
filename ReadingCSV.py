@@ -17,7 +17,7 @@ code as .py
 visualisation od single tree
 txt file with information about prediction quality
 
-You must use provided depression dataset and attempt to predict if someone is depressed or not.
+You must use provided depression dataset and attempt to predict if someone is dataSet or not.
 
 
 Dataset description (columns):
@@ -34,7 +34,7 @@ incomingnobusiness
 incomingagricultural farmexpenses
 laborprimary lastinginvestment
 nolastinginvestmen
-depressed: [ Zero: No depressed] or [One: depressed] (Binary for target class)
+dataSet: [ Zero: No dataSet] or [One: dataSet] (Binary for target class)
 the main objective is to show statistic analysis and some data mining techniques.
 
 The dataset has 23 columns or dimensions and a total of 1432 rows or objects.
@@ -42,62 +42,98 @@ The dataset has 23 columns or dimensions and a total of 1432 rows or objects.
 @author: s18321
 """
 import pandas as pd
+import os
 
-from keras.models import Model, Sequential
-from keras.layers import Dense
-from keras.utils import to_categorical
+import argparse
+
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.tree import DecisionTreeClassifier
 from sklearn.model_selection import train_test_split
+from sklearn import tree
+import graphviz
+# import matplotlib.pyplot as plt
 
-import matplotlib.pyplot as plt
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument('-t', '--train_file',  help="csv file with  data", default='b_depressed.csv', required=True)
+parser.add_argument('-s', '--train_test_split',  help="how many of datapoint will be used for tests",type=float, default=0.2, required=False)
+parser.add_argument('-c', '--clasification_column',  help="name of column in dataset with classification data",  required=True)
+parser.add_argument('--max_depth',  help="Maximum depth of tree",type=int, default=5, required=False)
+parser.add_argument('--acceptable_impurity',  help="Level of impurity at which we no longer split nodes",type=float, default=0, required=False)
+
+""" prints all passed arguments """
+args = parser.parse_args()
+print("train_file: ", args.train_file)
+print("train_test_split: ", args.train_test_split)
+print("clasification_column: ", args.clasification_column)
+print("max_depth: ", args.max_depth)
+print("acceptable_impurity: ", args.acceptable_impurity)
+
+
+
 
 """ reads csv file """
-depressed = pd.read_csv('b_depressed.csv')
+dataSet = pd.read_csv(args.train_file)
 
-print(depressed.info())
-""" shows all unique"""
-depressed.nounique()
-""" drops a column """
-depressed.drop(['Survey_id'], axis='columns', inplace=True)
-""" show general info """
-depressed.info()
-""" shows how many nulls are in those columns """
-depressed.isnull().sum(); 
-
-""" describes the column where we found nulls, if large difference between min and max then we want to use that column """
-depressed['no_lasting_investment'].describe()
-""" change all nulls to mean of the column  """
-depressed['no_lasting_investment'] = depressed['no_lasting_investment'].fillna(value=depressed['no_lasting_investment'].mean())
-
-""" """
-y =depressed.iloc[:]['depressed'].values
-num_calsses = depressed['depressed'].nounique()
-Y = to_categorical(y, num_classes = num_calsses)
-print(Y.shape)
-depressed.drop(['depressed'], axis='columns', inplace=True)
-
-X = depressed.values
-print(X.shape)
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33)
-
-print(X_train.shape)
+dataSet = dataSet.dropna()
 
 
-""" can change number of neurons to a bigger one, but it won't help much """
-model = Sequential()
-model.add(Dense(42, activation='relu',input_shape=[X.shape[1]]))
-model.add(Dense(21, activation='relu'))
-model.add(Dense(2, activation='softmax'))
-model.summary()
 
-model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+y = dataSet.iloc[:][args.clasification_column].values
 
-history = model.fit(X_train, y_train, batch_size=10, epochs=30, validation_data=(X_test, y_test))
+target_names = args.clasification_column
 
-print(history.history)
-""" show plot of accuracy validation of accuracy """
-plt.plot(history.history['accuracy'], label='Train accuracy')
-plt.plot(history.history['val_accuracy'], label='Train accuracy')
-plt.legend()
-plt.plot()
+""" checks how many values can classification column have and sets it as categories """
+#num_classes = dataSet[args.clasification_column].nounique()
+Y = pd.Categorical(y)
+print(f'Shape of y {Y.shape}')
+dataSet.drop([args.clasification_column], axis='columns', inplace=True)
+
+X = dataSet.values
 
 
+feature_names = dataSet.columns
+print(f'Shape of data { X.shape}')
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=args.train_test_split)
+
+
+
+tree_classifier = DecisionTreeClassifier(max_depth=args.max_depth, min_impurity_split=args.acceptable_impurity)
+tree_classifier.fit(X_train, y_train)
+
+# export_graphviz(classifier, 'classifier.dot', feature_names=dataset.feature_names, class_names=dataset.target_names)
+
+tree_score = tree_classifier.score(X_test, y_test)
+print(f'Score of tree {tree_score}')
+
+
+forest_classifier = RandomForestClassifier(max_depth=args.max_depth, n_estimators=9, min_impurity_split=args.acceptable_impurity)
+forest_classifier.fit(X_train, y_train)
+
+forest_score = forest_classifier.score(X_test, y_test)
+print(f'Score of forest  {forest_score}')
+
+print(len(forest_classifier.estimators_))
+print(forest_classifier.estimators_)
+
+
+
+
+# TO DO: get score to external txt file and get graphiz to make a png
+
+# DOT data
+# dot_data = tree.export_graphviz(tree_classifier, out_file=None,
+#                                 feature_names=feature_names,
+#                                 class_names=target_names,
+#                                 filled=True)
+#
+# # Draw graph
+# graph = graphviz.Source(dot_data, format="png")
+# print(graph)
+#
+# graph.render("decision_tree_graphivz")
+#'decision_tree_graphivz.png'
+
+# for tree_id, tree in enumerate(classifier.estimators_):
+#     export_graphviz(tree, f'tree{tree_id:02d}.dot', )
