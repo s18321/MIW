@@ -50,17 +50,27 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.model_selection import train_test_split
 from sklearn import tree
-import graphviz
-# import matplotlib.pyplot as plt
 
+import matplotlib.pyplot as plt
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('-t', '--train_file',  help="csv file with  data", default='b_depressed.csv', required=True)
-parser.add_argument('-s', '--train_test_split',  help="how many of datapoint will be used for tests",type=float, default=0.2, required=False)
-parser.add_argument('-c', '--clasification_column',  help="name of column in dataset with classification data",  required=True)
-parser.add_argument('--max_depth',  help="Maximum depth of tree",type=int, default=5, required=False)
-parser.add_argument('--acceptable_impurity',  help="Level of impurity at which we no longer split nodes",type=float, default=0, required=False)
+
+# Data validation for test_split
+def test_split(split_num):
+    if 0.8 <= split_num or 0.2 >= split_num:
+        raise argparse.ArgumentTypeError
+    return split_num
+
+
+parser.add_argument('-t', '--train_file', help="csv file with  data", default='b_depressed.csv', required=True)
+parser.add_argument('-s', '--train_test_split', help="how many of datapoint will be used for tests", type=test_split,
+                    default=0.2, required=False)
+parser.add_argument('-c', '--clasification_column', help="name of column in dataset with classification data",
+                    required=True)
+parser.add_argument('--max_depth', help="Maximum depth of tree", type=int, default=5, required=False)
+parser.add_argument('--acceptable_impurity', help="Level of impurity at which we no longer split nodes", type=float,
+                    default=0, required=False)
 
 """ prints all passed arguments """
 args = parser.parse_args()
@@ -70,45 +80,37 @@ print("clasification_column: ", args.clasification_column)
 print("max_depth: ", args.max_depth)
 print("acceptable_impurity: ", args.acceptable_impurity)
 
-
-
-
 """ reads csv file """
 dataSet = pd.read_csv(args.train_file)
-
+""" drops all rows with null values """
 dataSet = dataSet.dropna()
-
-
 
 y = dataSet.iloc[:][args.clasification_column].values
 
 target_names = args.clasification_column
 
 """ checks how many values can classification column have and sets it as categories """
-#num_classes = dataSet[args.clasification_column].nounique()
+# num_classes = dataSet[args.clasification_column].nounique()
 Y = pd.Categorical(y)
 print(f'Shape of y {Y.shape}')
 dataSet.drop([args.clasification_column], axis='columns', inplace=True)
 
 X = dataSet.values
 
-
 feature_names = dataSet.columns
-print(f'Shape of data { X.shape}')
+print(f'Shape of data {X.shape}')
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=args.train_test_split)
 
-
-
 tree_classifier = DecisionTreeClassifier(max_depth=args.max_depth, min_impurity_split=args.acceptable_impurity)
-tree_classifier.fit(X_train, y_train)
+tree_classifier.fit(X_train, y_train)  # add tree model
 
 # export_graphviz(classifier, 'classifier.dot', feature_names=dataset.feature_names, class_names=dataset.target_names)
 
 tree_score = tree_classifier.score(X_test, y_test)
 print(f'Score of tree {tree_score}')
 
-
-forest_classifier = RandomForestClassifier(max_depth=args.max_depth, n_estimators=9, min_impurity_split=args.acceptable_impurity)
+forest_classifier = RandomForestClassifier(max_depth=args.max_depth, n_estimators=9,
+                                           min_impurity_split=args.acceptable_impurity)
 forest_classifier.fit(X_train, y_train)
 
 forest_score = forest_classifier.score(X_test, y_test)
@@ -116,10 +118,33 @@ print(f'Score of forest  {forest_score}')
 
 print(len(forest_classifier.estimators_))
 print(forest_classifier.estimators_)
+# Saving a tree visualisation to a png file
+fig = plt.figure(figsize=(25, 20))
+_ = tree.plot_tree(tree_classifier,
+                   feature_names=feature_names,
+                   class_names=target_names,
+                   filled=True)
+fig.savefig("decision_tree_visualized.png")
 
+# Saving scoring to a txt file
+score_file = open("scoring_of_classifiers.txt", "w")
+L = ['Scores achieved and arguments passed \n',
+     'Arguments passed: \n',
+     f'train_file: {args.train_file} \n',
+     f'train_test_split: {args.train_test_split} \n',
+     f'clasification_column: {args.clasification_column} \n',
+     f'max_depth: {args.max_depth} \n',
+     f'acceptable_impurity: {args.acceptable_impurity} \n',
+     'Scores: \n'
+     f'Score of RandomForestClassifier: {forest_score} \n',
+     f'Score of DecisionTreeClassifier: {tree_score} \n']
+score_file.writelines(L)
+score_file.close()  # to change file access modes
 
-
-
+# (clf,
+#                  feature_names=iris.feature_names,
+#                 class_names=iris.target_names,
+#                filled=True)
 # TO DO: get score to external txt file and get graphiz to make a png
 
 # DOT data
@@ -133,7 +158,7 @@ print(forest_classifier.estimators_)
 # print(graph)
 #
 # graph.render("decision_tree_graphivz")
-#'decision_tree_graphivz.png'
+# 'decision_tree_graphivz.png'
 
 # for tree_id, tree in enumerate(classifier.estimators_):
 #     export_graphviz(tree, f'tree{tree_id:02d}.dot', )
